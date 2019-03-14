@@ -16,8 +16,6 @@ import android.support.v4.app.ActivityCompat
 import android.support.v4.content.PermissionChecker
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -33,6 +31,9 @@ import kotlinx.android.synthetic.main.activity_main.*
 import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        private val EXTRA_MODO_CLIENTE = "MainActivity.Modo"
+    }
 
     private var threadServidor: ThreadServidor? = null
     private var threadCliente: ThreadCliente? = null
@@ -47,6 +48,8 @@ class MainActivity : AppCompatActivity() {
     var mHandler: TelaPrincipalHandler? = null
 
     private var aguardeDialog: ProgressDialog? = null
+
+    private var modoCliente: Boolean? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,38 +68,44 @@ class MainActivity : AppCompatActivity() {
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                 REQUER_PERMISSOES_LOCALIZACAO)
         }
-    }
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.menu_modo_aplicativo, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
-        when (item?.itemId) {
-            R.id.modoClienteMenuItem -> {
-                toast("Configurando modo cliente")
-
-                listaBtsEncontrados = mutableListOf()
-
-                registraReceiver()
-
-                adaptadorBt?.startDiscovery()
-
-                exibirAguardeDialog("Procurando dispositivos Bluetooth", 0)
-                return true
+        if (savedInstanceState?.containsKey(EXTRA_MODO_CLIENTE) == true) {
+            if (savedInstanceState.getBoolean(EXTRA_MODO_CLIENTE)) {
+                iniciarModoCliente()
+            } else {
+                iniciarModoServidor()
             }
-            R.id.modoServidorMenuItem -> {
-                toast("Configurando modo servidor")
-
-                val descobertaIntent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
-                descobertaIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, TEMPO_DESCOBERTA_SERVICO_BLUETOOTH)
-                startActivityForResult(descobertaIntent, ATIVA_DESCOBERTA_BLUETOOTH)
-
-                return true
-            }
+        } else {
+            exibirEscolhaModo()
         }
-        return false
+    }
+
+    override fun onSaveInstanceState(outState: Bundle?) {
+        super.onSaveInstanceState(outState)
+
+        modoCliente?.let { outState?.putBoolean(EXTRA_MODO_CLIENTE, it) }
+    }
+
+    private fun iniciarModoCliente() {
+        toast("Configurando modo cliente")
+        modoCliente = true;
+
+        listaBtsEncontrados = mutableListOf()
+
+        registraReceiver()
+
+        adaptadorBt?.startDiscovery()
+
+        exibirAguardeDialog("Procurando dispositivos Bluetooth", 0)
+    }
+
+    private fun iniciarModoServidor() {
+        toast("Configurando modo servidor")
+        modoCliente = false
+
+        val descobertaIntent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+        descobertaIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, TEMPO_DESCOBERTA_SERVICO_BLUETOOTH)
+        startActivityForResult(descobertaIntent, ATIVA_DESCOBERTA_BLUETOOTH)
     }
 
     private fun registraReceiver() {
@@ -106,7 +115,10 @@ class MainActivity : AppCompatActivity() {
         registerReceiver(eventosBtReceiver, IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED))
     }
 
-    fun desregistrarReceiver() = eventosBtReceiver?.let { unregisterReceiver(it) }
+    fun desregistrarReceiver() {
+        eventosBtReceiver?.let { unregisterReceiver(it) }
+        eventosBtReceiver = null
+    }
 
     private fun exibirAguardeDialog(mensagem: String, tempo: Int) {
         aguardeDialog = ProgressDialog.show(this, "Aguarde", mensagem, true, true) {
@@ -179,6 +191,7 @@ class MainActivity : AppCompatActivity() {
             }
         } else if (requestCode == ATIVA_DESCOBERTA_BLUETOOTH) {
             if (resultCode == Activity.RESULT_CANCELED) {
+
                 toast("Visibilidade necessária")
                 finish()
             } else {
@@ -221,6 +234,21 @@ class MainActivity : AppCompatActivity() {
         }
 
         escolhaDispositivoDialog.show()
+    }
+
+    private fun exibirEscolhaModo() {
+        val escolhaModoDialog = with(AlertDialog.Builder(this)) {
+            setTitle("Modo")
+            setCancelable(false)
+            setPositiveButton("Cliente") { dialog, which ->
+                iniciarModoCliente()
+            }
+            setNegativeButton("Servidor") { dialog, which ->
+                iniciarModoServidor()
+            }
+
+        }
+        escolhaModoDialog.show()
     }
 
     private fun trataSelecaoServidor(dialog: DialogInterface, which: Int) {
