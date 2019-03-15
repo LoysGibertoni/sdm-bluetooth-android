@@ -1,6 +1,7 @@
 package br.edu.ifsp.scl.sdm.bluetooth
 
 import android.bluetooth.BluetoothSocket
+import android.text.TextUtils
 import br.edu.ifsp.scl.sdm.bluetooth.BluetoothSingleton.Constantes.MENSAGEM_DESCONEXAO
 import br.edu.ifsp.scl.sdm.bluetooth.BluetoothSingleton.Constantes.MENSAGEM_TEXTO
 import br.edu.ifsp.scl.sdm.bluetooth.BluetoothSingleton.inputStream
@@ -20,12 +21,13 @@ class ThreadComunicacao(val mainActivity: MainActivity) : Thread() {
             inputStream = DataInputStream(socket!!.inputStream)
             outputStream = DataOutputStream(socket!!.outputStream)
             // Lendo mensagens e escrevendo na Tela Principal
-            var mensagem: String?
+            var mensagem: Mensagem?
             while (true) {
                 // Lê o InputStream e armazena numa String
-                mensagem = inputStream?.readUTF()
+                mensagem = Mensagem.fromJSON(inputStream?.readUTF())
                 // Aciona o Handler da Tela Principal para mostrar a String recebida no ListView
-                mainActivity.mHandler?.obtainMessage(MENSAGEM_TEXTO, nome + ": " + mensagem)?.sendToTarget()
+                mainActivity.mHandler?.obtainMessage(MENSAGEM_TEXTO,
+                    (if (TextUtils.isEmpty(mensagem?.nomeUsuario)) nome else mensagem?.nomeUsuario) + ": " + mensagem?.conteudo)?.sendToTarget()
             }
         } catch (e: IOException) {
             /* Em caso de desconexão pede para o Handler da tela principal mostrar um Toast para o

@@ -18,6 +18,7 @@ import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.Toast
 import br.edu.ifsp.scl.sdm.bluetooth.BluetoothSingleton.Constantes.ATIVA_BLUETOOTH
 import br.edu.ifsp.scl.sdm.bluetooth.BluetoothSingleton.Constantes.ATIVA_DESCOBERTA_BLUETOOTH
@@ -32,7 +33,8 @@ import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
     companion object {
-        private val EXTRA_MODO_CLIENTE = "MainActivity.Modo"
+        private val EXTRA_MODO_CLIENTE = "MainActivity.ModoCliente"
+        private val EXTRA_NOME_USUARIO = "MainActivity.NomeUsuario"
     }
 
     private var threadServidor: ThreadServidor? = null
@@ -50,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private var aguardeDialog: ProgressDialog? = null
 
     private var modoCliente: Boolean? = null
+    private var nomeUsuario: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (savedInstanceState?.containsKey(EXTRA_MODO_CLIENTE) == true) {
+            nomeUsuario = savedInstanceState.getString(EXTRA_NOME_USUARIO)
             if (savedInstanceState.getBoolean(EXTRA_MODO_CLIENTE)) {
                 iniciarModoCliente()
             } else {
@@ -84,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
 
         modoCliente?.let { outState?.putBoolean(EXTRA_MODO_CLIENTE, it) }
+        nomeUsuario?.let { outState?.putString(EXTRA_NOME_USUARIO, it) }
     }
 
     private fun iniciarModoCliente() {
@@ -237,8 +242,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun exibirEscolhaModo() {
+        val editText = EditText(this)
+        editText.hint = "Nome de usuário"
+
         val escolhaModoDialog = with(AlertDialog.Builder(this)) {
             setTitle("Modo")
+            setView(editText)
             setCancelable(false)
             setPositiveButton("Cliente") { dialog, which ->
                 iniciarModoCliente()
@@ -246,6 +255,7 @@ class MainActivity : AppCompatActivity() {
             setNegativeButton("Servidor") { dialog, which ->
                 iniciarModoServidor()
             }
+            setOnDismissListener { nomeUsuario = editText.text.toString() }
 
         }
         escolhaModoDialog.show()
@@ -266,7 +276,7 @@ class MainActivity : AppCompatActivity() {
 
             try {
                 if (outputStream != null) {
-                    outputStream?.writeUTF(mensagem)
+                    outputStream?.writeUTF(Mensagem(mensagem, nomeUsuario).toJSON())
 
                     historicoAdapter?.add("Eu: $mensagem")
                     historicoAdapter?.notifyDataSetChanged()
